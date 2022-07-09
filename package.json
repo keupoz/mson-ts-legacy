@@ -1,0 +1,19 @@
+{
+  "name": "mson-20220619",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@keupoz/tson": "^1.0.0",
+    "file-saver": "^2.0.5",
+    "three": "^0.142.0"
+  },
+  "devDependencies": {
+    "@keupoz/typescript-config": "^1.5.0",
+    "@types/file-saver": "^2.0.5",
+    "@types/three": "^0.141.0",
+    "ts-standard": "^11.0.0",
+    "typescript": "^4.7.4",
+    "vite": "^2.9.12"
+  }
+}

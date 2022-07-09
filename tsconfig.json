@@ -1,0 +1,3 @@
+{
+    "extends": "@keupoz/typescript-config/tsconfig.json"
+}

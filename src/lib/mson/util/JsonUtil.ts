@@ -1,5 +1,6 @@
 import { JsonElement, JsonObject } from '@keupoz/tson'
 import { Tuple } from '../../Tuple'
+import { Stringifiable } from './Class'
 
 function fill<T, N extends number> (arr: Tuple<T, N>, value: T): Tuple<T, N> {
   for (let i = 0; i < arr.length; i++) {
@@ -19,10 +20,11 @@ export function accept (json: JsonObject, member: string): JsonElement | null {
   return element
 }
 
-export function jsonRequire (json: JsonObject, member: string, caller: string): JsonElement {
+export function jsonRequire (json: JsonObject, member: string, ...callerStack: Stringifiable[]): JsonElement {
   const element = accept(json, member)
 
   if (element === null) {
+    const caller = callerStack.map((caller) => caller.toString()).join(' in ')
     throw new Error(`Missing required member '${member}' in ${caller}`)
   }
 

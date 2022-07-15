@@ -67,11 +67,11 @@ export class BoxBuilder {
   }
 
   public setSizeAxis (axis: Axis, dimensions: number[]): this {
-    return this.setSize([
-      axis.getWidth().getNumber(dimensions),
-      axis.getHeight().getNumber(dimensions),
-      axis.getDepth().getNumber(dimensions)
-    ])
+    this.size[0] = axis.getWidth().getNumber(dimensions)
+    this.size[1] = axis.getHeight().getNumber(dimensions)
+    this.size[2] = axis.getDepth().getNumber(dimensions)
+
+    return this
   }
 
   public dilate (dilation: Tuple3<number>): this {
@@ -102,11 +102,11 @@ export class BoxBuilder {
     const textureWidth = this.parent.texture.getWidth()
     const textureHeight = this.parent.texture.getHeight()
 
-    return new Quad(vertices, u, v, u + w, v + h, textureWidth, textureHeight, mirror)
+    return new Quad([...vertices], u, v, u + w, v + h, textureWidth, textureHeight, mirror)
   }
 
-  public build (builder: QuadsBuilder): QuadGeometry {
-    return new QuadGeometry(this.buildQuads(builder))
+  public build (name: string, builder: QuadsBuilder): QuadGeometry {
+    return new QuadGeometry(name, this.buildQuads(builder))
   }
 
   public buildQuads (builder: QuadsBuilder): Quad[] {

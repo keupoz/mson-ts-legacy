@@ -1,6 +1,7 @@
-import { ModelPart } from '../../../ModelPart'
+import { ModelPart } from '../../../minecraft/ModelPart'
 import { QuadGeometry } from '../../../QuadGeometry'
 import { Tuple3 } from '../../../Tuple'
+import { TreeChild } from '../ModelContext'
 import { Texture } from './Texture'
 
 export class PartBuilder {
@@ -12,11 +13,11 @@ export class PartBuilder {
   public mirror: Tuple3<boolean> = [false, false, false]
 
   public readonly cubes: Set<QuadGeometry> = new Set()
-  public readonly children: Map<string, ModelPart> = new Map()
+  public readonly children: Map<string, TreeChild> = new Map()
 
   public hidden: boolean = false
 
-  public addChild (name: string, child: ModelPart): this {
+  public addChild (name: string, child: TreeChild): this {
     this.children.set(name, child)
     return this
   }
@@ -51,13 +52,14 @@ export class PartBuilder {
     return this
   }
 
-  public build (): ModelPart {
-    const result = new ModelPart(this.cubes, this.children)
+  public build (name: string): ModelPart {
+    const part = new ModelPart(name, this.cubes, this.children)
 
-    result.setRotation(...this.rotation)
-    result.setPosition(...this.pivot)
-    result.visible = !this.hidden
+    part.setRotation(...this.rotation)
+    part.setPosition(...this.pivot)
 
-    return result
+    part.visible = !this.hidden
+
+    return part
   }
 }

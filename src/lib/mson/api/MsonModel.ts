@@ -1,35 +1,26 @@
-import { Material, Mesh, Object3D } from 'three'
+import { JsonObject } from '@keupoz/tson'
+import { Converter } from '../../3d/Converter'
 import { Identifier } from '../../minecraft/Identifier'
-import { ModelPart } from '../../ModelPart'
-import { SkinMaterial } from '../../SkinMaterial'
-import { EmptyJsonContext } from '../impl/EmptyJsonContext'
-import { ModelLocalsImpl } from '../impl/ModelLocalsImpl'
-import { JsonContext } from './json/JsonContext'
-import { Texture, TextureChunk } from './model/Texture'
+import { ModelPart } from '../../minecraft/ModelPart'
+import { computeIfAbsent } from '../util/Map'
 import { ModelContext, TreeChild } from './ModelContext'
 
-export type MsonModelFactory = new (id: Identifier, jsonContext: JsonContext) => MsonModel
-export type DynamicModelFactory = new (id: Identifier, context: ModelContext) => DynamicModel
+export type MsonModelFactory<T = MsonModel> = new (id: Identifier, tree: ModelPart) => T
 
 export class MsonModel {
+  public static readonly NULL = (() => {
+    const id = new Identifier('mson', 'null')
+    const tree = new ModelPart(id.toString(), new Set(), new Map())
+
+    return new MsonModel(id, tree)
+  })()
+
   protected readonly id: Identifier
-  private readonly jsonContext: JsonContext
-  protected readonly material: SkinMaterial
+  protected tree: ModelPart
 
-  protected tree: ModelPart | null
-  private intersectables: Object3D[] | null
-  protected object: Object3D | null
-  private texture: Texture | null
-
-  constructor (id: Identifier, jsonContext: JsonContext) {
+  constructor (id: Identifier, tree: ModelPart) {
     this.id = id
-    this.jsonContext = jsonContext
-    this.material = new SkinMaterial()
-
-    this.tree = null
-    this.intersectables = null
-    this.object = null
-    this.texture = null
+    this.tree = tree
   }
 
   public getId (): Identifier {
@@ -37,110 +28,47 @@ export class MsonModel {
   }
 
   public getTree (): ModelPart {
-    if (this.tree === null) {
-      const locals = new ModelLocalsImpl(this.id, this.jsonContext.getLocals())
-      const modelContext = this.jsonContext.createContext(this, locals)
-
-      this.tree = this.init(modelContext)
-    }
-
     return this.tree
   }
 
-  public getIntersectables (): Object3D[] {
-    if (this.intersectables === null) {
-      this.intersectables = this.collectIntersectables()
-    }
+  public init (_context: ModelContext): void {
 
-    return this.intersectables
   }
 
-  public export (material: Material = this.material): Object3D {
-    if (this.object === null) {
-      this.object = this.getTree().export(material)
-      this.object.name = this.id.toString()
-    }
-
-    return this.object
-  }
-
-  public getTexture (): Texture {
-    if (this.texture === null) {
-      throw new Error(`Texture of model ${this.id.toString()} is not initialized`)
-    }
-
-    return this.texture
-  }
-
-  public getMaterial (): SkinMaterial {
-    return this.material
-  }
-
-  public async setTexture (id: string | Identifier, type: string): Promise<void> {
-    const image = await this.jsonContext.getLoader().loadImage(id, type)
-
-    this.material.drawImage(image)
-  }
-
-  public * exportTextures (): IterableIterator<TextureChunk> {
-    yield * this.getTree().exportTextures()
-  }
-
-  protected init (context: ModelContext): ModelPart {
-    this.texture = context.getLocals().getTexture()
-
-    const treeMap = new Map<string, TreeChild>()
-
-    context.getTree(context, treeMap)
-
-    return new ModelPart(new Set(), treeMap)
-  }
-
-  protected collectIntersectables (): Object3D[] {
-    const result: Object3D[] = []
-
-    function collect (object: Object3D): void {
-      if (object.userData['intersectable'] === false) {
-        return
-      }
-
-      for (const child of object.children) {
-        collect(child)
-
-        if (child instanceof Mesh) {
-          result.push(child)
-        }
-      }
-    }
-
-    collect(this.export())
-
-    return result
-  }
-}
-
-export class DynamicModel extends MsonModel {
-  protected override readonly tree: ModelPart
-
-  constructor (id: Identifier, context: ModelContext) {
-    super(id, EmptyJsonContext.INSTANCE)
-
-    this.tree = this.init(context)
-  }
-
-  public override getTree (): ModelPart {
-    return this.tree
+  public export <T> (converter: Converter<T, any>): T {
+    return converter.buildModelPart(this.tree)
   }
 }
 
 export class Implementation {
-  public static readonly NULL = new Implementation('null', DynamicModel)
+  private static readonly REGISTRY = new Map<string, Implementation>()
+
+  public static register (className: string, factory: MsonModelFactory): void {
+    if (this.REGISTRY.has(className)) {
+      throw new Error(`An implementation with the className '${className}' is already registered`)
+    }
+
+    const instance = new Implementation(className, factory)
+    this.REGISTRY.set(className, instance)
+  }
+
+  public static fromJson (json: JsonObject): Implementation {
+    const rawClassName = json.get('implementation')
+
+    if (rawClassName === null) {
+      throw new Error('Slot requires an implemetation')
+    }
+
+    return computeIfAbsent(this.REGISTRY, rawClassName.getAsString(), (className) => {
+      return new Implementation(className, MsonModel)
+    })
+  }
 
   private readonly id: Identifier
-  private readonly factory: DynamicModelFactory
+  private readonly factory: MsonModelFactory
 
-  constructor (className: string, factory: DynamicModelFactory) {
-    this.id = new Identifier('dynamic', className.replaceAll('.', '/').toLowerCase())
+  constructor (className: string, factory: MsonModelFactory) {
+    this.id = new Identifier('dynamic', className.replaceAll(/[\\.\\$]/g, '/').toLowerCase())
     this.factory = factory
   }
 
@@ -150,7 +78,10 @@ export class Implementation {
 
   public createModel (context: ModelContext): MsonModel {
     const Model = this.factory
+    const tree = new Map<string, TreeChild>()
 
-    return new Model(this.id, context)
+    context.getTree(tree)
+
+    return new Model(this.id, new ModelPart(this.id.toString(), new Set(), tree))
   }
 }

@@ -33,19 +33,3 @@ export class Texture {
     return `[JsonTexture u=${this.u} v=${this.v} w=${this.width} h=${this.height}]`
   }
 }
-
-export class TextureChunk {
-  private readonly children: Set<Texture>
-
-  constructor () {
-    this.children = new Set()
-  }
-
-  public addChild (child: Texture): void {
-    this.children.add(child)
-  }
-
-  public getChildren (): IterableIterator<Texture> {
-    return this.children.values()
-  }
-}

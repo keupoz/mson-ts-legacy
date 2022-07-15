@@ -13,31 +13,32 @@ import { Block, Local } from '../Local'
 import { ModelLocalsImpl } from '../ModelLocalsImpl'
 import { textureOf } from './JsonTexture'
 
-export class JsonSlot extends JsonComponent {
+export class JsonSlot extends JsonComponent<MsonModel> {
   public static readonly ID = new Identifier('mson', 'slot')
 
-  private readonly implementation: Implementation
-  private data: JsonContext | null
-  private readonly locals: Block
-  private readonly texture: Texture | null
+  public readonly implementation: Implementation
+  private data: JsonContext | null = null
+  public readonly locals: Block
+  public readonly texture: Texture | null
 
   private readonly name: string
 
   constructor (context: JsonContext, name: string, json: JsonObject) {
+    const callerStack = [JsonSlot.ID, context.getLocals().getModelId()]
+
+    if (name.length === 0) {
+      name = jsonRequire(json, 'name', ...callerStack).getAsString()
+    }
+
     super()
 
-    const caller = `mson:slot component in ${context.getLocals().getModelId().toString()}`
+    this.name = name
 
-    this.data = null
-
-    void context.resolve(jsonRequire(json, 'data', caller)).then((data) => {
+    void context.resolve(jsonRequire(json, 'data', ...callerStack)).then((data) => {
       this.data = data
     })
 
-    const className = jsonRequire(json, 'implementation', caller).getAsString()
-
-    this.implementation = context.getLoader().getImplementation(className)
-    this.name = name.length === 0 ? jsonRequire(json, 'name', caller).getAsString() : name
+    this.implementation = Implementation.fromJson(json)
 
     const texture = accept(json, 'texture')
 
@@ -58,10 +59,12 @@ export class JsonSlot extends JsonComponent {
         throw new Error(`Data is not resolved yet. ${this.name}`)
       }
 
-      const locals = new ModelLocalsImpl(this.implementation.getId(), new Locals(this.data, this.locals, this.texture))
-      const subContext = this.data.createContext(context.getModel(), locals)
-      // const inst = this.implementation.createModel(subContext)
-      const inst = this.implementation.createModel(subContext.resolve(context.getContext(), subContext.getLocals()))
+      const jsContext = this.data
+      const locals = new ModelLocalsImpl(new Locals(jsContext, this))
+      const subContext = jsContext.createContext(context.getModel(), locals)
+      const inst = this.implementation.createModel(subContext)
+
+      inst.init(subContext.resolve(context.getContext()))
 
       return inst
     })
@@ -70,19 +73,17 @@ export class JsonSlot extends JsonComponent {
 
 class Locals extends JsonLocalsImpl {
   private readonly parent: JsonContextLocals
-  private readonly locals: Block
-  private readonly texture: Texture | null
+  private readonly component: JsonSlot
 
-  constructor (parent: JsonContext, locals: Block, texture: Texture | null) {
+  constructor (parent: JsonContext, component: JsonSlot) {
     super()
 
     this.parent = parent.getLocals()
-    this.locals = locals
-    this.texture = texture
+    this.component = component
   }
 
   public getModelId (): Identifier {
-    return this.parent.getModelId()
+    return this.component.implementation.getId()
   }
 
   public getDilation (): Tuple3<number> {
@@ -90,14 +91,14 @@ class Locals extends JsonLocalsImpl {
   }
 
   public getTexture (): Texture {
-    return this.texture ?? this.parent.getTexture()
+    return this.component.texture ?? this.parent.getTexture()
   }
 
   public getLocal (name: string): Incomplete<number> {
-    return this.locals.get(name) ?? this.parent.getLocal(name)
+    return this.component.locals.get(name) ?? this.parent.getLocal(name)
   }
 
   public keys (): Set<string> {
-    return this.locals.appendKeys(this.parent.keys())
+    return this.component.locals.appendKeys(this.parent.keys())
   }
 }

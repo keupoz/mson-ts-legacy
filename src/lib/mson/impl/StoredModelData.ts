@@ -1,70 +1,67 @@
 import { JsonElement, JsonObject } from '@keupoz/tson'
 import { Identifier } from '../../minecraft/Identifier'
-import { MsonLoader } from '../../MsonLoader'
-import { QuadGeometry } from '../../QuadGeometry'
+import { ModelPart } from '../../minecraft/ModelPart'
 import { Tuple3 } from '../../Tuple'
 import { Incomplete } from '../api/Incomplete'
-import { ExportResult, JsonComponent } from '../api/json/JsonComponent'
+import { JsonComponent } from '../api/json/JsonComponent'
 import { JsonContext, JsonContextLocals } from '../api/json/JsonContext'
 import { Texture } from '../api/model/Texture'
-import { ExtraContext, ModelContext, ModelContextLocals, TreeChild } from '../api/ModelContext'
+import { ModelContext, ModelContextLocals, TreeChild } from '../api/ModelContext'
 import { MsonModel } from '../api/MsonModel'
 import { accept, acceptNumbers } from '../util/JsonUtil'
+import { computeIfAbsent } from '../util/Map'
 import { EmptyJsonContext } from './EmptyJsonContext'
 import { JsonLocalsImpl } from './JsonLocalsImpl'
 import { Block, Local } from './Local'
 import { JsonCompound } from './model/JsonCompound'
+import { JsonImport } from './model/JsonImport'
 import { JsonLink } from './model/JsonLink'
 import { unlocalizedTexture } from './model/JsonTexture'
+import { ModelFoundry } from './ModelFoundry'
+import { Mson } from './Mson'
 import { SubContext } from './SubContext'
 
 export class StoredModelData implements JsonContext {
-  private readonly loader: MsonLoader
-  private readonly elements: Map<string, JsonComponent>
+  private readonly foundry: ModelFoundry
   private readonly parent: JsonContext
   private readonly variables: JsonContextLocals
 
-  private constructor (loader: MsonLoader, id: Identifier, json: JsonObject, parent: JsonContext) {
-    this.loader = loader
+  private readonly elements = new Map<string, JsonComponent>()
 
+  private constructor (foundry: ModelFoundry, id: Identifier, json: JsonObject, parent: JsonContext) {
+    this.foundry = foundry
     this.parent = parent
 
     this.variables = new RootVariables(id, json, this.parent.getLocals())
-    this.elements = new Map()
 
-    for (const [name, element] of this.parseElements(json)) {
-      this.elements.set(name, element)
+    for (const [key, value] of this.getChildren(json)) {
+      const component = this.loadComponent(key, value, JsonCompound.ID)
+
+      if (component !== null) {
+        this.elements.set(key, component)
+      }
     }
   }
 
-  public getLoader (): MsonLoader {
-    return this.loader
-  }
-
-  public static async create (loader: MsonLoader, id: Identifier, json: JsonObject): Promise<JsonContext> {
+  public static async create (foundry: ModelFoundry, id: Identifier, json: JsonObject): Promise<JsonContext> {
     const parentName = accept(json, 'parent')
     let parent: JsonContext = EmptyJsonContext.INSTANCE
 
     if (parentName !== null) {
       const id = Identifier.of(parentName.getAsString())
-      const file = await loader.getFile(id)
-      parent = await file.getModelData()
+      parent = await foundry.loadJsonModel(id)
     }
 
-    return new StoredModelData(loader, id, json, parent)
+    return new StoredModelData(foundry, id, json, parent)
   }
 
-  private * parseElements (json: JsonObject): IterableIterator<[string, JsonComponent]> {
+  private * getChildren (json: JsonObject): IterableIterator<[string, JsonElement]> {
     const data = json.get('data')
 
     if (data !== null) {
       for (const [key, value] of data.getAsObject().entries()) {
         if (value.isObject() || (value.isPrimitive() && value.isString())) {
-          const component = this.loadComponent(key, value, JsonCompound.ID)
-
-          if (component !== null) {
-            yield [key, component]
-          }
+          yield [key, value]
         }
       }
     }
@@ -86,30 +83,35 @@ export class StoredModelData implements JsonContext {
     }
   }
 
-  public loadComponent (name: string | null, json: JsonElement, defaultAs: Identifier): JsonComponent | null {
+  public loadComponent (name: string, json: JsonElement, defaultAs: Identifier): JsonComponent | null {
     if (json.isObject()) {
-      name = (name ?? '').trim()
+      name = name.trim()
       const rawType = accept(json, 'type')
-      const type = rawType === null ? defaultAs : Identifier.of(rawType.getAsString())
+      const type = rawType === null ? defaultAs : rawType.getAsString()
 
-      const Component = this.loader.getComponentFactory(type)
+      const Component = Mson.INSTANCE.getComponentType(type)
 
       return new Component(this, name, json)
     }
 
     if (json.isPrimitive()) {
       if (json.isString()) {
-        return new JsonLink(json.getAsString())
+        const name = json.getAsString()
+
+        if (name.startsWith('#')) {
+          return new JsonLink(name)
+        }
+
+        return new JsonImport(this, name, json)
       }
     }
 
-    throw new Error('Input is not a json object and could not be resolved to a link')
+    throw new Error('Input is not a json object and could not be resolved to a #link or model reference')
   }
 
   public async resolve (json: JsonElement): Promise<JsonContext> {
     if (json.isPrimitive()) {
-      const file = await this.loader.getFile(Identifier.of(json.getAsString()))
-      return await file.getModelData()
+      return await this.foundry.loadJsonModel(json.getAsString())
     }
 
     const id = this.getLocals().getModelId()
@@ -122,7 +124,7 @@ export class StoredModelData implements JsonContext {
     const file = new JsonObject()
     file.set('data', json)
 
-    return await StoredModelData.create(this.loader, autoGenId, file)
+    return await StoredModelData.create(this.foundry, autoGenId, file)
   }
 
   public createContext (model: MsonModel, locals: ModelContextLocals): ModelContext {
@@ -180,7 +182,7 @@ export class RootContext implements ModelContext {
 
   private readonly elements: Map<string, JsonComponent>
 
-  private readonly objectCache: Map<string, ExportResult>
+  private readonly objectCache = new Map<string, any>()
 
   constructor (model: MsonModel, inherited: ModelContext, locals: ModelContextLocals, elements: Map<string, JsonComponent>) {
     this.model = model
@@ -188,8 +190,6 @@ export class RootContext implements ModelContext {
     this.locals = locals
 
     this.elements = elements
-
-    this.objectCache = new Map()
   }
 
   public getModel (): MsonModel {
@@ -200,7 +200,7 @@ export class RootContext implements ModelContext {
     this.model = model
   }
 
-  public getContext (): ExtraContext {
+  public getContext (): unknown {
     return this.model
   }
 
@@ -208,45 +208,39 @@ export class RootContext implements ModelContext {
     return this.locals
   }
 
-  public getTree (context: ModelContext, tree: Map<string, TreeChild>): void {
+  public getTree (tree: Map<string, TreeChild>, context: ModelContext = this): void {
     for (const [name, element] of this.elements) {
       if (!tree.has(name)) {
         const result = element.export(context)
 
-        if (!(result instanceof QuadGeometry)) {
+        if (result instanceof ModelPart || result instanceof MsonModel) {
           tree.set(name, result)
         }
       }
     }
 
-    this.inherited.getTree(context, tree)
+    this.inherited.getTree(tree, context)
   }
 
-  public findByName (context: ModelContext, name: string): ExportResult {
+  public findByName <T>(name: string, context: ModelContext = this): T {
     const element = this.elements.get(name)
 
     if (element === undefined) {
-      return this.inherited.findByName(context, name)
+      return this.inherited.findByName(name, context)
     }
 
-    return element.export(context)
+    return element.export(context) as T
   }
 
-  public computeIfAbsent<T extends ExportResult> (name: string, supplier: (key: string) => T): T {
+  public computeIfAbsent <T>(name: string, supplier: (key: string) => T): T {
     if (name.length === 0) {
       return supplier(name)
     }
 
-    let value = this.objectCache.get(name)
-
-    if (value === undefined) {
-      value = supplier(name)
-    }
-
-    return value as T
+    return computeIfAbsent(this.objectCache, name, supplier)
   }
 
-  public resolve (child: ExtraContext, locals: ModelContextLocals): ModelContext {
+  public resolve (child: unknown, locals: ModelContextLocals = this.getLocals()): ModelContext {
     if (child === this.getContext() && locals === this.getLocals()) {
       return this
     }

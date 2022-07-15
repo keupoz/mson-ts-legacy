@@ -1,67 +1,35 @@
-import { BufferAttribute, BufferGeometry, Vector3 } from 'three'
-import { Texture, TextureChunk } from './mson/api/model/Texture'
+import { Vector3 } from 'three'
+import { Converter } from './3d/Converter'
 import { Tuple } from './Tuple'
 
 export type VertexTuple = [...Tuple<Vertex, 4>, ...Vertex[]]
 
 export class QuadGeometry {
+  private readonly name: string
   private readonly quads: Quad[]
 
-  constructor (quads: Quad[]) {
+  constructor (name: string, quads: Quad[]) {
+    this.name = name
     this.quads = quads
   }
 
-  public exportTexture (): TextureChunk {
-    const result = new TextureChunk()
-
-    for (const quad of this.quads) {
-      result.addChild(quad.texture)
-    }
-
-    return result
+  public getName (): string {
+    return this.name
   }
 
-  public build (): BufferGeometry {
-    const geometry = new BufferGeometry()
-    const position: number[] = []
-    const uv: number[] = []
-    const index: number[] = []
+  public * getQuads (): IterableIterator<Quad> {
+    yield * this.quads
+  }
 
-    let i = 0
-
-    for (const quad of this.quads) {
-      for (const { pos: { x, y, z }, u, v } of quad.vertices) {
-        position.push(x, -y, -z)
-        uv.push(u, 1 - v)
-      }
-
-      const a = i
-      const b = i + 1
-      const c = i + 2
-      const d = i + 3
-
-      index.push(a, b, d)
-      index.push(b, c, d)
-
-      i += quad.vertices.length
-    }
-
-    geometry.setAttribute('position', new BufferAttribute(new Float32Array(position), 3))
-    geometry.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2))
-    geometry.setIndex(index)
-
-    geometry.computeVertexNormals()
-
-    return geometry
+  public export <T> (converter: Converter<any, T>): T {
+    return converter.buildGeometry(this)
   }
 }
 
 export class Quad {
-  public readonly texture: Texture
   public readonly vertices: VertexTuple
 
   constructor (vertices: VertexTuple, u1: number, v1: number, u2: number, v2: number, squishU: number, squishV: number, flip: boolean) {
-    this.texture = new Texture(u1, v1, u2, v2)
     this.vertices = vertices
 
     vertices[0] = vertices[0].remap(u2 / squishU, v1 / squishV)

@@ -3,6 +3,8 @@ import { AddEquation, CustomBlending, DoubleSide, MeshBasicMaterial, MeshLambert
 export class HornGlowMaterial extends MeshBasicMaterial {
   constructor () {
     super({
+      name: 'glow',
+
       color: 0xec4389,
 
       blending: CustomBlending,
@@ -18,65 +20,54 @@ export class HornGlowMaterial extends MeshBasicMaterial {
 }
 
 export class SkinMaterial extends MeshLambertMaterial {
-  public override map!: Texture
-
-  private readonly canvas: HTMLCanvasElement
-  private readonly ctx: CanvasRenderingContext2D
+  private readonly image: HTMLCanvasElement | HTMLImageElement | null
+  private readonly lastWidth: number
+  private readonly lastHeight: number
 
   constructor () {
     super({
+      name: 'skin',
       /*
        * 0.001 is lower than minimal possible value (1/255 ~= 0.003)
        * This fixes transparency overlap when top
        * transparent element erases everything underneath it
        */
       alphaTest: 0.1,
+      color: 0xffffff,
       side: DoubleSide,
       transparent: true
     })
 
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
+    this.image = null
+    this.lastWidth = 0
+    this.lastHeight = 0
 
-    if (ctx === null) {
-      throw new Error('Can\'t create 2D canvas context')
-    }
-
-    ctx.fillStyle = 'white'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-    this.canvas = canvas
-    this.ctx = ctx
-
-    this.initTexture()
     this.update()
   }
 
   public update (): void {
-    this.map.needsUpdate = true
+    if (this.map !== null) {
+      // Texture size cannot be changed since r134,
+      // so the texture has to be reinitialized each time
+      // https://github.com/mrdoob/three.js/wiki/Migration-Guide#134--135
+
+      if (this.sizeChanged()) {
+        this.setTexture(this.image)
+      } else {
+        this.map.needsUpdate = true
+      }
+    }
   }
 
-  public getRenderingContext (): CanvasRenderingContext2D {
-    return this.ctx
-  }
+  public setTexture (image: HTMLCanvasElement | HTMLImageElement | null): void {
+    if (image === null) {
+      this.map = null
 
-  public drawImage (image: HTMLImageElement): void {
-    this.ctx.canvas.width = image.width
-    this.ctx.canvas.height = image.height
+      return
+    }
 
-    this.ctx.clearRect(0, 0, image.width, image.height)
-    this.ctx.drawImage(image, 0, 0)
-
-    this.initTexture()
-    this.update()
-  }
-
-  private initTexture (): void {
-    // Texture size cannot be changed since r134,
-    // so the texture has to be reinitialized each time
-    // https://github.com/mrdoob/three.js/wiki/Migration-Guide#134--135
     this.map = new Texture(
-      this.canvas,
+      image,
       UVMapping,
       RepeatWrapping,
       RepeatWrapping,
@@ -85,5 +76,14 @@ export class SkinMaterial extends MeshLambertMaterial {
     )
 
     this.map.premultiplyAlpha = true
+    this.map.needsUpdate = true
+  }
+
+  private sizeChanged (): boolean {
+    if (this.image === null) {
+      return false
+    }
+
+    return this.lastWidth !== this.image.width || this.lastHeight !== this.image.height
   }
 }

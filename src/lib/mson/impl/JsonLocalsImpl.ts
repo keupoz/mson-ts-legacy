@@ -43,7 +43,7 @@ export abstract class JsonLocalsImpl implements JsonContextLocals {
     return toFloats(arr.map(Local.ref.bind(Local)) as Tuple<Incomplete<number>, N>)
   }
 
-  public getMemberArray<N extends number>(json: JsonObject, member: string, length: N): Incomplete<Tuple<number, N>> {
+  public getArray<N extends number>(json: JsonObject, member: string, length: N): Incomplete<Tuple<number, N>> {
     const arr = accept(json, member)
 
     if (arr === null) return toFloats(values(length))

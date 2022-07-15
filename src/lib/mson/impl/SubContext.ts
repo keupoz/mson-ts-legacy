@@ -1,13 +1,12 @@
-import { ExportResult } from '../api/json/JsonComponent'
-import { ExtraContext, ModelContext, ModelContextLocals, TreeChild } from '../api/ModelContext'
+import { ModelContext, ModelContextLocals, TreeChild } from '../api/ModelContext'
 import { MsonModel } from '../api/MsonModel'
 
 export class SubContext implements ModelContext {
   private readonly parent: ModelContext
   private readonly locals: ModelContextLocals
-  private readonly context: ExtraContext
+  private readonly context: unknown
 
-  constructor (parent: ModelContext, locals: ModelContextLocals, context: ExtraContext) {
+  constructor (parent: ModelContext, locals: ModelContextLocals, context: unknown) {
     this.parent = parent
     this.locals = locals
     this.context = context
@@ -17,23 +16,23 @@ export class SubContext implements ModelContext {
     return this.parent.getModel()
   }
 
-  public getContext (): ExtraContext {
+  public getContext (): unknown {
     return this.context
   }
 
-  public getTree (context: ModelContext, tree: Map<string, TreeChild>): void {
-    this.parent.getTree(context, tree)
+  public getTree (tree: Map<string, TreeChild>, context?: ModelContext): void {
+    this.parent.getTree(tree, context)
   }
 
-  public findByName (context: ModelContext, name: string): ExportResult {
-    return this.parent.findByName(context, name)
+  public findByName <T>(name: string, context?: ModelContext): T {
+    return this.parent.findByName(name, context)
   }
 
-  public computeIfAbsent<T extends ExportResult> (name: string, supplier: (key: string) => T): T {
+  public computeIfAbsent <T>(name: string, supplier: (key: string) => T): T {
     return this.parent.computeIfAbsent(name, supplier)
   }
 
-  public resolve (child: ExtraContext, locals: ModelContextLocals): ModelContext {
+  public resolve (child: unknown, locals: ModelContextLocals = this.getLocals()): ModelContext {
     if (child === this.getContext() && locals === this.getLocals()) {
       return this
     }

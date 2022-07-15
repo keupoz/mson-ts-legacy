@@ -3,22 +3,19 @@ import { Tuple3 } from '../../Tuple'
 import { JsonContextLocals } from '../api/json/JsonContext'
 import { Texture } from '../api/model/Texture'
 import { ModelContextLocals } from '../api/ModelContext'
+import { computeIfAbsent } from '../util/Map'
 
 export class ModelLocalsImpl implements ModelContextLocals {
-  private readonly id: Identifier
   private readonly context: JsonContextLocals
 
-  private readonly cache: Map<string, number>
+  private readonly cache = new Map<string, number>()
 
-  constructor (id: Identifier, context: JsonContextLocals) {
-    this.id = id
+  constructor (context: JsonContextLocals) {
     this.context = context
-
-    this.cache = new Map()
   }
 
   public getModelId (): Identifier {
-    return this.id
+    return this.context.getModelId()
   }
 
   public getDilation (): Tuple3<number> {
@@ -30,13 +27,11 @@ export class ModelLocalsImpl implements ModelContextLocals {
   }
 
   public getLocal (name: string): number {
-    let value = this.cache.get(name)
+    return computeIfAbsent(this.cache, name, (n) => {
+      const value = this.context.getLocal(n)
 
-    if (value === undefined) {
-      value = this.context.getLocal(name).complete(new StackFrame(this, name))
-    }
-
-    return value
+      return value.complete(new StackFrame(this, n))
+    })
   }
 
   public keys (): Set<string> {
@@ -44,16 +39,16 @@ export class ModelLocalsImpl implements ModelContextLocals {
   }
 
   public toString (): string {
-    return `[ModelLocalsImpl id=${this.id.toString()}]`
+    return `[ModelLocalsImpl id=${this.context.getModelId().toString()}]`
   }
 }
 
 class StackFrame implements ModelContextLocals {
-  private readonly name: string
+  private readonly currentVariableRef: string
   private readonly parent: ModelContextLocals
 
-  constructor (parent: ModelContextLocals, name: string) {
-    this.name = name.toLowerCase()
+  constructor (parent: ModelContextLocals, currentVariableRef: string) {
+    this.currentVariableRef = currentVariableRef.toLowerCase()
     this.parent = parent
   }
 
@@ -70,7 +65,7 @@ class StackFrame implements ModelContextLocals {
   }
 
   public getLocal (name: string): number {
-    if (name.toLowerCase() === this.name) {
+    if (name.toLowerCase() === this.currentVariableRef) {
       throw new Error(`Cyclical reference. ${this.toString()}`)
     }
 
@@ -82,6 +77,6 @@ class StackFrame implements ModelContextLocals {
   }
 
   public toString (): string {
-    return `${this.parent.toString()} -> ${this.name}`
+    return `${this.parent.toString()} -> ${this.currentVariableRef}`
   }
 }

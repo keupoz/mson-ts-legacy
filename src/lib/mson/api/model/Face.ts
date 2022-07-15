@@ -67,13 +67,13 @@ export class Axis {
 export class Face {
   private static readonly REGISTRY = new Map<string, Face>()
 
-  public static readonly NONE = new Face('NONE', Axis.Y)
   public static readonly UP = new Face('UP', Axis.Y)
   public static readonly DOWN = new Face('DOWN', Axis.Y)
   public static readonly WEST = new Face('WEST', Axis.X)
   public static readonly EAST = new Face('EAST', Axis.X)
   public static readonly NORTH = new Face('NORTH', Axis.Z)
   public static readonly SOUTH = new Face('SOUTH', Axis.Z)
+  public static readonly NONE = Face.UP
 
   private readonly name: string
 

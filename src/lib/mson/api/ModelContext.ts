@@ -1,22 +1,18 @@
-import { ModelPart } from '../../ModelPart'
+import { ModelPart } from '../../minecraft/ModelPart'
 import { CommonLocals } from './CommonLocals'
-import { ExportResult } from './json/JsonComponent'
-import { BoxBuilder } from './model/BoxBuilder'
-import { PartBuilder } from './model/PartBuilder'
 import { MsonModel } from './MsonModel'
 
-export type ExtraContext = MsonModel | PartBuilder | BoxBuilder
-export type TreeChild = MsonModel | ModelPart
+export type TreeChild = ModelPart | MsonModel
 
 export interface ModelContext {
   getRoot: () => ModelContext
   getModel: () => MsonModel
-  getContext: () => ExtraContext
+  getContext: () => unknown
   getLocals: () => ModelContextLocals
-  computeIfAbsent: <T extends ExportResult>(name: string, supplier: (key: string) => T) => T
-  getTree: (context: ModelContext, tree: Map<string, TreeChild>) => void
-  findByName: (context: ModelContext, name: string) => ExportResult
-  resolve: (child: ExtraContext, locals: ModelContextLocals) => ModelContext
+  computeIfAbsent: <T>(name: string, supplier: (key: string) => T) => T
+  getTree: (tree: Map<string, TreeChild>, context?: ModelContext) => void
+  findByName: <T> (name: string, context?: ModelContext) => T
+  resolve: (child: unknown, locals?: ModelContextLocals) => ModelContext
 }
 
 export interface ModelContextLocals extends CommonLocals {

@@ -13,28 +13,27 @@ import { ModelContext } from '../../api/ModelContext'
 import { accept, acceptBooleans, jsonRequire } from '../../util/JsonUtil'
 import { incompleteTexture } from './JsonTexture'
 
-export class JsonPlane extends JsonComponent {
+export class JsonPlane extends JsonComponent<QuadGeometry> {
   public static readonly ID = new Identifier('mson', 'plane')
 
   private readonly position: Incomplete<Tuple3<number>>
   private readonly size: Incomplete<Tuple2<number>>
   private readonly dilation: Incomplete<Tuple3<number>>
   private readonly texture: Incomplete<Texture>
-  private readonly mirror: Tuple2<boolean>
+  private readonly mirror: Tuple2<boolean> = [false, false]
   private readonly face: Face
 
   constructor (context: JsonContext, _name: string, json: JsonObject) {
     super()
 
-    this.position = context.getLocals().getMemberArray(json, 'position', 3)
-    this.size = context.getLocals().getMemberArray(json, 'size', 2)
+    const callerStack = [JsonPlane.ID, context.getLocals().getModelId()]
+
+    this.position = context.getLocals().getArray(json, 'position', 3)
+    this.size = context.getLocals().getArray(json, 'size', 2)
     this.texture = incompleteTexture(accept(json, 'texture'))
-
-    this.mirror = [false, false]
     acceptBooleans(json, 'mirror', this.mirror)
-
-    this.dilation = context.getLocals().getMemberArray(json, 'dilate', 3)
-    this.face = Face.of(jsonRequire(json, 'face', `mson:plane in ${context.getLocals().getModelId().toString()}`).getAsString())
+    this.dilation = context.getLocals().getArray(json, 'dilate', 3)
+    this.face = Face.of(jsonRequire(json, 'face', ...callerStack).getAsString())
   }
 
   public export (context: ModelContext): QuadGeometry {
@@ -44,6 +43,6 @@ export class JsonPlane extends JsonComponent {
       .setPosition(this.position.resolve(context))
       .setSizeAxis(this.face.getAxis(), this.size.resolve(context))
       .dilate(this.dilation.resolve(context))
-      .build(QuadsBuilder.plane(this.face))
+      .build('', QuadsBuilder.plane(this.face))
   }
 }

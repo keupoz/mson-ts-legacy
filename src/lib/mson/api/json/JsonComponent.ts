@@ -1,22 +1,21 @@
 import { JsonObject } from '@keupoz/tson'
-import { ModelPart } from '../../../ModelPart'
-import { QuadGeometry } from '../../../QuadGeometry'
+import { Class } from '../../util/Class'
+import { accept } from '../../util/JsonUtil'
 import { ModelContext } from '../ModelContext'
-import { MsonModel } from '../MsonModel'
 import { JsonContext } from './JsonContext'
 
-export type ExportResult = MsonModel | ModelPart | QuadGeometry
+export type JsonComponentFactory<T = unknown> = new (context: JsonContext, name: string, json: JsonObject) => JsonComponent<T>
 
-export type JsonComponentFactory = new (context: JsonContext, name: string, json: JsonObject) => JsonComponent
-
-export type TryExportTypeFactory<T extends ExportResult> = new (...args: any[]) => T
-
-export abstract class JsonComponent {
-  public tryExport<T extends ExportResult>(context: ModelContext, type: TryExportTypeFactory<T>): T | null {
-    const s = this.export(context)
-
-    return s instanceof type ? s : null
+export abstract class JsonComponent<T = unknown> {
+  protected resolveName (name: string, json: JsonObject): string {
+    return name.length === 0 ? accept(json, 'name')?.getAsString() ?? name : name
   }
 
-  public abstract export (context: ModelContext): ExportResult
+  public tryExport<K extends any>(context: ModelContext, type: Class<K>): K | null {
+    const result = this.export(context)
+
+    return result instanceof type ? result : null
+  }
+
+  public abstract export (context: ModelContext): T
 }

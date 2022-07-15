@@ -1,9 +1,8 @@
 import { Identifier } from '../../minecraft/Identifier'
 import { Tuple3 } from '../../Tuple'
 import { EmptyContextError } from '../api/error/EmptyContextError'
-import { ExportResult, JsonComponent } from '../api/json/JsonComponent'
 import { Texture } from '../api/model/Texture'
-import { ExtraContext, ModelContext, ModelContextLocals } from '../api/ModelContext'
+import { ModelContext, ModelContextLocals, TreeChild } from '../api/ModelContext'
 import { MsonModel } from '../api/MsonModel'
 
 export class EmptyModelContext implements ModelContext, ModelContextLocals {
@@ -16,19 +15,19 @@ export class EmptyModelContext implements ModelContext, ModelContextLocals {
     throw new EmptyContextError('getModel')
   }
 
-  public getContext (): ExtraContext {
+  public getContext (): any {
     throw new EmptyContextError('getContext')
   }
 
-  public computeIfAbsent <T extends ExportResult>(name: string, supplier: (key: string) => T): T {
+  public computeIfAbsent <T>(name: string, supplier: (key: string) => T): T {
     return supplier(name)
   }
 
-  public * getTree (): IterableIterator<JsonComponent> {
+  public getTree (_tree: Map<string, TreeChild>, _context?: ModelContext): void {
 
   }
 
-  public findByName <T>(_context: ModelContext, name: string): T {
+  public findByName <T>(name: string, _context?: ModelContext): T {
     throw new Error(`Key not found '${name}'`)
   }
 
@@ -36,7 +35,7 @@ export class EmptyModelContext implements ModelContext, ModelContextLocals {
     return this
   }
 
-  public resolve (): ModelContext {
+  public resolve (_child: unknown, _locals?: ModelContextLocals): ModelContext {
     return this
   }
 

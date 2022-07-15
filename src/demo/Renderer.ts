@@ -1,6 +1,5 @@
 import { AmbientLight, BoxHelper, DirectionalLight, Intersection, Object3D, PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
-import { MsonModel } from './mson/api/MsonModel'
 
 interface PointerInfo {
   clientX: number
@@ -21,8 +20,6 @@ export class Renderer {
 
   private currentIntersection: Intersection | null
 
-  private readonly intersectables: Set<Object3D>
-
   constructor () {
     this.renderer = new WebGLRenderer({ alpha: false })
     this.scene = new Scene()
@@ -37,8 +34,6 @@ export class Renderer {
 
     this.currentIntersection = null
 
-    this.intersectables = new Set()
-
     this.camera.position.set(32, 16, 32)
     this.directionalLight.position.copy(this.camera.position)
     this.camera.lookAt(0, 0, 0)
@@ -47,13 +42,7 @@ export class Renderer {
     this.controls.listenToKeyEvents(window)
     this.controls.zoomSpeed = 2
 
-    this.raycaster.params.Points = {
-      threshold: 0
-    }
-
-    this.raycaster.params.Line = {
-      threshold: 0
-    }
+    this.raycaster.layers.mask = 0b10
 
     this.controls.addEventListener('change', () => {
       this.directionalLight.position.copy(this.camera.position)
@@ -114,20 +103,12 @@ export class Renderer {
     this.render()
   }
 
-  public addModel (model: MsonModel): void {
-    this.scene.add(model.export())
-
-    for (const intersectable of model.getIntersectables()) {
-      this.intersectables.add(intersectable)
-    }
+  public addObject (object: Object3D): void {
+    this.scene.add(object)
   }
 
-  public removeModel (model: MsonModel): void {
-    this.scene.remove(model.export())
-
-    for (const intersectable of model.getIntersectables()) {
-      this.intersectables.delete(intersectable)
-    }
+  public removeObject (object: Object3D): void {
+    this.scene.remove(object)
   }
 
   public render (): void {
@@ -166,7 +147,7 @@ export class Renderer {
   private updateHighlight (): void {
     this.raycaster.setFromCamera(this.pointerVector, this.camera)
 
-    const intersection = this.raycaster.intersectObjects([...this.intersectables], false)[0]
+    const [intersection] = this.raycaster.intersectObjects(this.scene.children)
 
     if (intersection === undefined) {
       this.scene.remove(this.highlight)

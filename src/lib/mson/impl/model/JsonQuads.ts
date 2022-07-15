@@ -11,7 +11,7 @@ import { getIntegerOr, getNumberOr, jsonRequire } from '../../util/JsonUtil'
 export class JsonQuads extends JsonComponent {
   public static readonly ID = new Identifier('mson', 'quads')
 
-  private readonly quads: Set<JsonQuad>
+  private readonly quads = new Set<JsonQuad>()
 
   private readonly texU: number
   private readonly texV: number
@@ -21,23 +21,21 @@ export class JsonQuads extends JsonComponent {
   constructor (context: JsonContext, _name: string, json: JsonObject) {
     super()
 
-    const caller = `mson:quads component in ${context.getLocals().getModelId().toString()}`
+    const callerStack = [JsonQuads.ID, context.getLocals().getModelId()]
 
-    this.texU = jsonRequire(json, 'u', caller).getAsInteger()
-    this.texV = jsonRequire(json, 'v', caller).getAsInteger()
+    this.texU = jsonRequire(json, 'u', ...callerStack).getAsInteger()
+    this.texV = jsonRequire(json, 'v', ...callerStack).getAsInteger()
 
-    const rawVertices = jsonRequire(json, 'vertices', caller).getAsArray().iterator()
+    const rawVertices = jsonRequire(json, 'vertices', ...callerStack).getAsArray()
+    const rawQuads = jsonRequire(json, 'faces', ...callerStack).getAsArray()
+
     const vertices: JsonVertex[] = []
 
-    for (const rawVertex of rawVertices) {
+    for (const rawVertex of rawVertices.iterator()) {
       vertices.push(new JsonVertex(rawVertex))
     }
 
-    const rawQuads = jsonRequire(json, 'faces', caller).getAsArray().iterator()
-
-    this.quads = new Set()
-
-    for (const rawQuad of rawQuads) {
+    for (const rawQuad of rawQuads.iterator()) {
       this.quads.add(new JsonQuad(context, vertices, rawQuad))
     }
 
@@ -56,7 +54,7 @@ export class JsonQuads extends JsonComponent {
     const builder = new BoxBuilder(context)
     builder.u = this.texU
     builder.v = this.texV
-    return builder.build(this.builder)
+    return builder.build('', this.builder)
   }
 }
 
@@ -79,10 +77,10 @@ class JsonQuad {
 
     this.vertices = []
 
-    const caller = `quads block in mson:quads component in ${context.getLocals().getModelId().toString()}`
-    const vertIndices = jsonRequire(o, 'vertices', caller).getAsArray().iterator()
+    const callerStack = [JsonQuads.ID, context.getLocals().getModelId()]
+    const vertIndices = jsonRequire(o, 'vertices', ...callerStack).getAsArray()
 
-    for (const index of vertIndices) {
+    for (const index of vertIndices.iterator()) {
       const i = index.getAsInteger()
       const vertex = vertices[i]
 

@@ -27,6 +27,6 @@ export class JsonCone extends JsonBox {
       .setSize(this.size.resolve(context))
       .dilate(this.dilation.resolve(context))
       .setMirrorSingle(Axis.X, this.mirror)
-      .build(QuadsBuilder.cone(this.taper.resolve(context)))
+      .build(this.name, QuadsBuilder.cone(this.taper.resolve(context)))
   }
 }

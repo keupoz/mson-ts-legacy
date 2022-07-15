@@ -1,12 +1,13 @@
+import { JsonElement } from '@keupoz/tson'
 import { Identifier } from '../../minecraft/Identifier'
-import { MsonLoader } from '../../MsonLoader'
 import { Tuple3 } from '../../Tuple'
 import { EmptyContextError } from '../api/error/EmptyContextError'
 import { Incomplete } from '../api/Incomplete'
 import { JsonComponent } from '../api/json/JsonComponent'
 import { JsonContext, JsonContextLocals } from '../api/json/JsonContext'
 import { Texture } from '../api/model/Texture'
-import { ModelContext } from '../api/ModelContext'
+import { ModelContext, ModelContextLocals } from '../api/ModelContext'
+import { MsonModel } from '../api/MsonModel'
 import { EmptyModelContext } from './EmptyModelContext'
 import { JsonLocalsImpl } from './JsonLocalsImpl'
 
@@ -17,15 +18,11 @@ export class EmptyJsonContext extends JsonLocalsImpl implements JsonContext {
     super()
   }
 
-  public getLoader (): MsonLoader {
-    throw new EmptyContextError('getLoader')
-  }
-
   public getModelId (): Identifier {
     return EmptyModelContext.ID
   }
 
-  public async resolve (): Promise<JsonContext> {
+  public async resolve (_json: JsonElement): Promise<JsonContext> {
     throw new EmptyContextError('resolve')
   }
 
@@ -37,15 +34,15 @@ export class EmptyJsonContext extends JsonLocalsImpl implements JsonContext {
     return new Set()
   }
 
-  public addNamedComponent (): void {
+  public addNamedComponent (_name: string, _component: JsonComponent): void {
 
   }
 
-  public loadComponent (): JsonComponent | null {
+  public loadComponent (_name: string, _json: JsonElement, _defaultAs: Identifier): JsonComponent | null {
     return null
   }
 
-  public createContext (): ModelContext {
+  public createContext (_model: MsonModel, _locals: ModelContextLocals): ModelContext {
     return EmptyModelContext.INSTANCE
   }
 

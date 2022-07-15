@@ -1,7 +1,7 @@
 import { JsonArray, JsonObject } from '@keupoz/tson'
 import { Vector3 } from 'three'
 import { Identifier } from '../../../minecraft/Identifier'
-import { Quad, QuadGeometry } from '../../../QuadGeometry'
+import { QuadGeometry } from '../../../QuadGeometry'
 import { Tuple2, Tuple3 } from '../../../Tuple'
 import { Incomplete } from '../../api/Incomplete'
 import { JsonContext } from '../../api/json/JsonContext'
@@ -13,18 +13,17 @@ import { QuadsBuilder } from '../../api/model/QuadsBuilder'
 import { Texture } from '../../api/model/Texture'
 import { ModelContext } from '../../api/ModelContext'
 import { accept } from '../../util/JsonUtil'
+import { computeIfAbsent } from '../../util/Map'
 import { JsonCompound } from './JsonCompound'
 import { fromParent } from './JsonTexture'
 
 export class JsonPlanar extends JsonCompound {
   public static override readonly ID = new Identifier('mson', 'planar')
 
-  private readonly faces: Map<Face, JsonFaceSet>
+  private readonly faces = new Map<Face, JsonFaceSet>()
 
   constructor (context: JsonContext, name: string, json: JsonObject) {
     super(context, name, json)
-
-    this.faces = new Map()
 
     for (const face of Face.values()) {
       const rawFaceSet = accept(json, face.getName().toLowerCase())
@@ -35,16 +34,14 @@ export class JsonPlanar extends JsonCompound {
     }
   }
 
-  protected override exportChildren (context: ModelContext, builder: PartBuilder): PartBuilder {
-    super.exportChildren(context, builder)
-
-    const quads: Quad[] = []
+  protected override exportBuilder (context: ModelContext, builder: PartBuilder): PartBuilder {
+    super.exportBuilder(context, builder)
 
     for (const faceSet of this.faces.values()) {
-      quads.push(...faceSet.export(context))
+      for (const face of faceSet.export(context)) {
+        builder.addCube(face)
+      }
     }
-
-    builder.addCube(new QuadGeometry(quads))
 
     return builder
   }
@@ -53,11 +50,10 @@ export class JsonPlanar extends JsonCompound {
 class JsonFaceSet {
   private readonly face: Face
 
-  private readonly elements: Set<JsonFace>
+  private readonly elements = new Set<JsonFace>()
 
   constructor (context: JsonContext, json: JsonArray, face: Face) {
     this.face = face
-    this.elements = new Set()
 
     if (json.get(0).isArray()) {
       for (const element of json.iterator()) {
@@ -68,11 +64,11 @@ class JsonFaceSet {
     }
   }
 
-  public * export (subContext: ModelContext): IterableIterator<Quad> {
+  public * export (subContext: ModelContext): IterableIterator<QuadGeometry> {
     const fixtures = new Fixtures(subContext, this.face, this.elements)
 
     for (const element of this.elements) {
-      yield * element.export(subContext, fixtures)
+      yield element.export(subContext, fixtures)
     }
   }
 }
@@ -120,14 +116,14 @@ class JsonFace {
     }
   }
 
-  public export (context: ModelContext, fixtures: Fixtures): Quad[] {
+  public export (context: ModelContext, fixtures: Fixtures): QuadGeometry {
     return new BoxBuilder(context)
       .setFixture(fixtures)
       .setTexture(this.texture.resolve(context))
       .setMirror(this.face.getAxis(), this.mirror)
       .setPosition(this.position.resolve(context))
       .setSizeAxis(this.face.getAxis(), this.size.resolve(context))
-      .buildQuads(QuadsBuilder.plane(this.face))
+      .build('', QuadsBuilder.plane(this.face))
   }
 
   private static createTexture (u: Incomplete<number>, v: Incomplete<number>): Incomplete<Texture> {
@@ -135,8 +131,8 @@ class JsonFace {
       const parent = locals.getTexture()
 
       return new Texture(
-        u.complete(locals),
-        v.complete(locals),
+        u.complete(locals) | 0,
+        v.complete(locals) | 0,
         parent.getWidth(),
         parent.getHeight()
       )
@@ -158,14 +154,14 @@ class Fixtures extends CoordinateFixture {
           const vertices = face.getVertices(i.position.resolve(context), i.size.resolve(context), axis, 0.5)
 
           for (const vertex of vertices) {
-            const locked: Vector3[] = this.getLockedVectors(axis)
+            const locked = this.getLockedVectors(axis)
 
             for (const vector of locked) {
               if (vector.equals(vertex.getNormalVector())) return
             }
 
             for (const f of elements) {
-              if (i !== f && face.isInside(f.position.resolve(context), f.size.resolve(context), vertex.getStretchedVector())) {
+              if (f !== i && face.isInside(f.position.resolve(context), f.size.resolve(context), vertex.getStretchedVector())) {
                 locked.push(vertex.getNormalVector())
                 break
               }
@@ -177,14 +173,9 @@ class Fixtures extends CoordinateFixture {
   }
 
   public getLockedVectors (axis: Axis): Vector3[] {
-    let result = this.lockedVectors.get(axis)
-
-    if (result === undefined) {
-      result = []
-      this.lockedVectors.set(axis, result)
-    }
-
-    return result
+    return computeIfAbsent(this.lockedVectors, axis, () => {
+      return []
+    })
   }
 
   protected override isFixed (axis: Axis, x: number, y: number, z: number): boolean {

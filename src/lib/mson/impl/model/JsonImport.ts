@@ -2,7 +2,7 @@ import { JsonElement, JsonObject } from '@keupoz/tson'
 import { Identifier } from '../../../minecraft/Identifier'
 import { Tuple3 } from '../../../Tuple'
 import { Incomplete } from '../../api/Incomplete'
-import { JsonComponent } from '../../api/json/JsonComponent'
+import { JsonComponent, resolveName } from '../../api/json/JsonComponent'
 import { JsonContext, JsonContextLocals } from '../../api/json/JsonContext'
 import { Texture } from '../../api/model/Texture'
 import { ModelContext, TreeChild } from '../../api/ModelContext'
@@ -17,21 +17,19 @@ export class JsonImport extends JsonComponent<TreeChild> {
   private file: JsonContext | null = null
   private readonly locals: Block | null
 
-  private readonly name: string
-
   constructor (context: JsonContext, name: string, json: JsonObject | JsonElement) {
-    super()
+    name = json.isObject() ? resolveName(name, json) : name
+
+    super(name)
 
     const callerStack = [JsonImport.ID, context.getLocals().getModelId()]
 
     let rawData
 
     if (json.isObject()) {
-      this.name = this.resolveName(name, json)
       rawData = jsonRequire(json, 'data', ...callerStack)
       this.locals = Local.of(accept(json, 'locals'))
     } else {
-      this.name = name
       rawData = json
       this.locals = null
     }

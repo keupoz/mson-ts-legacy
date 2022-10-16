@@ -21,8 +21,6 @@ export class JsonSlot extends JsonComponent<MsonModel> {
   public readonly locals: Block
   public readonly texture: Texture | null
 
-  private readonly name: string
-
   constructor (context: JsonContext, name: string, json: JsonObject) {
     const callerStack = [JsonSlot.ID, context.getLocals().getModelId()]
 
@@ -30,9 +28,7 @@ export class JsonSlot extends JsonComponent<MsonModel> {
       name = jsonRequire(json, 'name', ...callerStack).getAsString()
     }
 
-    super()
-
-    this.name = name
+    super(name)
 
     void context.resolve(jsonRequire(json, 'data', ...callerStack)).then((data) => {
       this.data = data

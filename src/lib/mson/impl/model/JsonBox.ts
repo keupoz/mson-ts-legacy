@@ -22,8 +22,8 @@ export class JsonBox extends JsonComponent<QuadGeometry> {
   protected readonly mirror: boolean | null
   protected readonly texture: Incomplete<Texture>
 
-  constructor (context: JsonContext, _name: string, json: JsonObject) {
-    super()
+  constructor (context: JsonContext, name: string, json: JsonObject) {
+    super(name)
 
     this.from = context.getLocals().getArray(json, 'from', 3)
     this.size = context.getLocals().getArray(json, 'size', 3)
@@ -39,6 +39,6 @@ export class JsonBox extends JsonComponent<QuadGeometry> {
       .setSize(this.size.resolve(context))
       .dilate(this.dilation.resolve(context))
       .setMirrorSingle(Axis.X, this.mirror)
-      .build('', QuadsBuilder.box())
+      .build(this.name, QuadsBuilder.box())
   }
 }

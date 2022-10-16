@@ -18,8 +18,8 @@ export class JsonQuads extends JsonComponent {
 
   private readonly builder: QuadsBuilder
 
-  constructor (context: JsonContext, _name: string, json: JsonObject) {
-    super()
+  constructor (context: JsonContext, name: string, json: JsonObject) {
+    super(name)
 
     const callerStack = [JsonQuads.ID, context.getLocals().getModelId()]
 
@@ -54,7 +54,7 @@ export class JsonQuads extends JsonComponent {
     const builder = new BoxBuilder(context)
     builder.u = this.texU
     builder.v = this.texV
-    return builder.build('', this.builder)
+    return builder.build(this.name, this.builder)
   }
 }
 

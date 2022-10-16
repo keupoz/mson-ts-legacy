@@ -6,9 +6,15 @@ import { JsonContext } from './JsonContext'
 
 export type JsonComponentFactory<T = unknown> = new (context: JsonContext, name: string, json: JsonObject) => JsonComponent<T>
 
+export function resolveName (name: string, json: JsonObject): string {
+  return name.length === 0 ? accept(json, 'name')?.getAsString() ?? name : name
+}
+
 export abstract class JsonComponent<T = unknown> {
-  protected resolveName (name: string, json: JsonObject): string {
-    return name.length === 0 ? accept(json, 'name')?.getAsString() ?? name : name
+  public readonly name: string
+
+  constructor (name: string) {
+    this.name = name
   }
 
   public tryExport<K extends any>(context: ModelContext, type: Class<K>): K | null {

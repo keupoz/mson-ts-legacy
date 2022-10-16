@@ -31,7 +31,7 @@ export class ThreeConverter extends Converter<Object3D, BufferGeometry> {
     object.visible = part.visible
     object.name = part.getName()
 
-    for (const [, child] of part.getChildren()) {
+    for (const [key, child] of part.getChildren()) {
       let result
 
       if (child instanceof MsonModel) {
@@ -39,6 +39,8 @@ export class ThreeConverter extends Converter<Object3D, BufferGeometry> {
       } else {
         result = child.export(this)
       }
+
+      result.name = key
 
       object.add(result)
     }

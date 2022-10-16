@@ -23,8 +23,8 @@ export class JsonPlane extends JsonComponent<QuadGeometry> {
   private readonly mirror: Tuple2<boolean> = [false, false]
   private readonly face: Face
 
-  constructor (context: JsonContext, _name: string, json: JsonObject) {
-    super()
+  constructor (context: JsonContext, name: string, json: JsonObject) {
+    super(name)
 
     const callerStack = [JsonPlane.ID, context.getLocals().getModelId()]
 
@@ -43,6 +43,6 @@ export class JsonPlane extends JsonComponent<QuadGeometry> {
       .setPosition(this.position.resolve(context))
       .setSizeAxis(this.face.getAxis(), this.size.resolve(context))
       .dilate(this.dilation.resolve(context))
-      .build('', QuadsBuilder.plane(this.face))
+      .build(this.name, QuadsBuilder.plane(this.face))
   }
 }

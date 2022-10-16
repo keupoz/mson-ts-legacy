@@ -3,7 +3,7 @@ import { Identifier } from '../../../minecraft/Identifier'
 import { ModelPart } from '../../../minecraft/ModelPart'
 import { Tuple3 } from '../../../Tuple'
 import { Incomplete } from '../../api/Incomplete'
-import { JsonComponent } from '../../api/json/JsonComponent'
+import { JsonComponent, resolveName } from '../../api/json/JsonComponent'
 import { JsonContext } from '../../api/json/JsonContext'
 import { PartBuilder } from '../../api/model/PartBuilder'
 import { Texture } from '../../api/model/Texture'
@@ -21,12 +21,8 @@ export abstract class AbstractJsonParent extends JsonComponent<ModelPart> {
   private readonly visible: boolean
   public readonly texture: Incomplete<Texture>
 
-  protected readonly name: string
-
   constructor (context: JsonContext, name: string, json: JsonObject) {
-    super()
-
-    this.name = this.resolveName(name, json)
+    super(resolveName(name, json))
 
     this.pivot = context.getLocals().getArray(json, 'pivot', 3)
     this.dilation = context.getLocals().getArray(json, 'dilate', 3)

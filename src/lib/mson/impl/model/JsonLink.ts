@@ -9,7 +9,7 @@ export class JsonLink extends JsonComponent<unknown> {
       throw new Error('Link name should begin with a "#".')
     }
 
-    super()
+    super(name)
 
     this.linkName = name.substring(1)
   }

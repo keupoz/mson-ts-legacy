@@ -18,6 +18,10 @@ export class EmptyJsonContext extends JsonLocalsImpl implements JsonContext {
     super()
   }
 
+  public createSubContext (): JsonContext {
+    return this
+  }
+
   public getModelId (): Identifier {
     return EmptyModelContext.ID
   }

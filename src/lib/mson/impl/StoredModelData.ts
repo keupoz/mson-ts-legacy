@@ -22,6 +22,8 @@ import { Mson } from './Mson'
 import { SubContext } from './SubContext'
 
 export class StoredModelData implements JsonContext {
+  private readonly id: Identifier
+
   private readonly foundry: ModelFoundry
   private readonly parent: JsonContext
   private readonly variables: JsonContextLocals
@@ -29,6 +31,7 @@ export class StoredModelData implements JsonContext {
   private readonly elements = new Map<string, JsonComponent>()
 
   private constructor (foundry: ModelFoundry, id: Identifier, json: JsonObject, parent: JsonContext) {
+    this.id = id
     this.foundry = foundry
     this.parent = parent
 
@@ -41,6 +44,11 @@ export class StoredModelData implements JsonContext {
         this.elements.set(key, component)
       }
     }
+  }
+
+  public createSubContext (name: string): JsonContext {
+    const id = new Identifier(this.id.getNamespace(), `${this.id.getPath()}.${name}`)
+    return new StoredModelData(this.foundry, id, new JsonObject(), this)
   }
 
   public static async create (foundry: ModelFoundry, id: Identifier, json: JsonObject): Promise<JsonContext> {

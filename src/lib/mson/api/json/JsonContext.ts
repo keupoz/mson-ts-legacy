@@ -10,6 +10,7 @@ import { JsonComponent } from './JsonComponent'
 export interface JsonContext {
   addNamedComponent: (name: string, component: JsonComponent) => void
   loadComponent: (name: string, json: JsonElement, defaultAs: Identifier) => JsonComponent | null
+  createSubContext: (name: string) => JsonContext
   createContext: (model: MsonModel, locals: ModelContextLocals) => ModelContext
   getComponentNames: () => Set<string>
   resolve: (json: JsonElement) => Promise<JsonContext>

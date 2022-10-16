@@ -23,9 +23,11 @@ export class JsonCompound extends AbstractJsonParent {
     const children = accept(json, 'children')
     const cubes = accept(json, 'cubes')
 
+    const subContext = context.createSubContext(name)
+
     if (children !== null) {
       for (const [key, value] of this.parseChildren(children)) {
-        const component = context.loadComponent(`${name}.${key}`, value, JsonCompound.ID)
+        const component = subContext.loadComponent(`${name}.${key}`, value, JsonCompound.ID)
 
         if (component !== null) {
           this.children.set(key, component)
@@ -37,7 +39,7 @@ export class JsonCompound extends AbstractJsonParent {
       let i = 0
 
       for (const element of cubes.getAsArray().iterator()) {
-        const component = context.loadComponent(`${name}.cube${i++}`, element, JsonBox.ID)
+        const component = subContext.loadComponent(`${name}.cube${i++}`, element, JsonBox.ID)
 
         if (component !== null) {
           this.cubes.add(component)

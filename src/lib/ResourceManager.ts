@@ -54,15 +54,37 @@ export abstract class ResourceManager {
 }
 
 export class FetchResourceManager extends ResourceManager {
+  private readonly idMap: Record<string, string> | null
+
+  constructor (path: string, idMap?: Record<string, string>) {
+    super(path)
+
+    this.idMap = idMap ?? null
+  }
+
   protected async loadResource (id: string | Identifier): Promise<JsonElement> {
     id = Identifier.of(id)
 
-    const r = await fetch(`${this.path}/${id.getNamespace()}/${id.getPath()}`)
+    const r = await fetch(this.getPath(id))
 
     if (r.status !== 200) {
       throw new Error(`Can't load file ${id.toString()}`)
     }
 
     return createJsonElement(await r.json())
+  }
+
+  private getPath (id: Identifier): string {
+    if (this.idMap === null) {
+      return `${this.path}/${id.getNamespace()}/${id.getPath()}`
+    }
+
+    const value = this.idMap[id.toString()]
+
+    if (value === undefined) {
+      throw new Error(`Unknown ID '${id.toString()}' in mapped FetchResourceManager`)
+    }
+
+    return value
   }
 }

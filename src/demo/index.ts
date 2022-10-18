@@ -57,7 +57,7 @@ const MODELS = processGlobResult(import.meta.glob('/assets/mson/**/models/**/*.j
 const TEXTURES = processGlobResult(import.meta.glob('/assets/mson/**/textures/**/*.png', { eager: true, as: 'url' }))
 
 void (async () => {
-  const resourceManager = new FetchResourceManager(RESOURCES_PATH, MODELS)
+  const resourceManager = new FetchResourceManager(RESOURCES_PATH, Object.assign({}, MODELS, TEXTURES))
   const manager = new ModelManager(resourceManager, ThreeConverter)
 
   Implementation.register('com.minelittlepony.client.model.part.UnicornHorn', UnicornHorn)

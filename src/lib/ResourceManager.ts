@@ -48,8 +48,12 @@ export abstract class ResourceManager {
         reject(new Error(`Can't load image '${id.toString()}'`))
       }
 
-      image.src = `${this.path}/${id.getNamespace()}/${id.getPath()}`
+      image.src = this.getPath(id)
     })
+  }
+
+  protected getPath (id: Identifier): string {
+    return `${this.path}/${id.getNamespace()}/${id.getPath()}`
   }
 }
 
@@ -74,9 +78,9 @@ export class FetchResourceManager extends ResourceManager {
     return createJsonElement(await r.json())
   }
 
-  private getPath (id: Identifier): string {
+  protected override getPath (id: Identifier): string {
     if (this.idMap === null) {
-      return `${this.path}/${id.getNamespace()}/${id.getPath()}`
+      return super.getPath(id)
     }
 
     const value = this.idMap[id.toString()]
